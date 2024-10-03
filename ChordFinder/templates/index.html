@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Accord de guitare</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Trouver l'accord de guitare</h1>
+        <form method="POST">
+            <label for="string0">Corde 6 (Mi grave) :</label>
+            <input type="text" id="string0" name="string0" required>
+
+            <label for="string1">Corde 5 (La) :</label>
+            <input type="text" id="string1" name="string1" required>
+
+            <label for="string2">Corde 4 (Ré) :</label>
+            <input type="text" id="string2" name="string2" required>
+
+            <label for="string3">Corde 3 (Sol) :</label>
+            <input type="text" id="string3" name="string3" required>
+
+            <label for="string4">Corde 2 (Si) :</label>
+            <input type="text" id="string4" name="string4" required>
+
+            <label for="string5">Corde 1 (Mi aigu) :</label>
+            <input type="text" id="string5" name="string5" required><br>
+
+            <input type="submit" value="Trouver l'accord">
+        </form>
+
+        {% if images %}
+        <div class="result">
+            <h2>Résultats trouvés :</h2>
+            {% for image in images %}
+                <div class="chord-result">
+                    <h3>{{ image.chord_name }} - {{ image.chord_type }}</h3>
+                    <img src="{{ image.image_url }}" alt="Image de l'accord">
+                </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>
