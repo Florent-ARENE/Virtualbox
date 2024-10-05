@@ -34,10 +34,10 @@ def search_images_for_chord_on_page(chord_name, encoded_positions, page):
     base_url = "https://jguitar.com/chordsearch"
     params = {'chordsearch': chord_name, 'page': page}
     response = requests.get(base_url, params=params)
-    
+
     # Afficher le numéro de la page pour le debug
     print(f"Recherche sur la page {page} pour l'accord {chord_name}")
-    
+
     soup = BeautifulSoup(response.content, "html.parser")
 
     # Chercher toutes les images potentielles sur cette page
@@ -46,7 +46,7 @@ def search_images_for_chord_on_page(chord_name, encoded_positions, page):
 
     # Regex mis à jour pour capturer des nombres de plusieurs chiffres
     regex_pattern = re.compile(r"[0-9x]+%2C[0-9x]+%2C[0-9x]+%2C[0-9x]+%2C[0-9x]+%2C[0-9x]+\.png$")
-    
+
     for img in image_elements:
         if "chordshape" in img['src']:
             full_img_url = f"https://jguitar.com{img['src']}"
@@ -100,30 +100,32 @@ def get_chord_images_for_finger_positions(string_positions):
 
     return exact_matches, other_positions
 
-@app.route('/', methods=['GET', 'POST'])
+@app.route('/ChordFinder/', methods=['GET', 'POST'])
 def index():
     exact_matches = []
     other_positions = []
-    
+    error_message = None
+
     if request.method == 'POST':
         try:
-            # Récupérer les positions des doigts depuis le formulaire
-            string_positions = [
-                request.form['string0'],  # Corde mi grave
-                request.form['string1'],  # Corde la
-                request.form['string2'],  # Corde ré
-                request.form['string3'],  # Corde sol
-                request.form['string4'],  # Corde si
-                request.form['string5']   # Corde mi aigu
-            ]
-        except KeyError as e:
-            return f"Erreur dans le formulaire, champ manquant : {e}"
+            # Récupérer et valider les positions des doigts depuis le formulaire
+            string_positions = []
+            for i in range(6):
+                value = request.form[f'string{i}'].lower()
+                if not re.match(r'^[x0-9]{1,2}$', value) or (value.isdigit() and int(value) > 26):
+                    raise ValueError(f"Valeur incorrecte pour la corde {i + 1}")
+                string_positions.append(value)
+        except (KeyError, ValueError) as e:
+            return render_template('index.html', error_message=str(e))
 
         # Obtenir toutes les images correspondant aux positions des doigts
         exact_matches, other_positions = get_chord_images_for_finger_positions(string_positions)
 
-    # Afficher les informations et les images
-    return render_template('index.html', exact_matches=exact_matches, other_positions=other_positions)
+        # Si aucun accord n'a été trouvé
+        if not exact_matches and not other_positions:
+            error_message = "Aucun accord trouvé pour les positions de doigts fournies."
+
+    return render_template('index.html', exact_matches=exact_matches, other_positions=other_positions, error_message=error_message)
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, host='0.0.0.0')

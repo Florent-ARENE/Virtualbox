@@ -1,4 +1,3 @@
-<!-- ## ./templates/index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -9,70 +8,101 @@
 </head>
 <body>
     <div class="container">
-        <h1>Trouver l'accord de guitare</h1>
-        <form method="POST" onsubmit="showLoader()">
-            <label for="string0">Corde 6 (Mi grave) :</label>
-            <input type="text" id="string0" name="string0" required>
+		<h1>Trouver le nom de l'accord</h1>
+		<p>Veuillez entrer 'x' pour une corde non jouée, '0' pour une corde à vide, ou un nombre entre 1 et 26.</p>
 
-            <label for="string1">Corde 5 (La) :</label>
-            <input type="text" id="string1" name="string1" required>
+		{% if error_message %}
+			<div class="error">{{ error_message }}</div>
+		{% endif %}
 
-            <label for="string2">Corde 4 (Ré) :</label>
-            <input type="text" id="string2" name="string2" required>
+		<form method="POST" onsubmit="return validateForm()">
+			<label for="string0">Corde 6 (Mi grave) :</label>
+			<input type="text" id="string0" name="string0" required oninput="validateInput(this)">
 
-            <label for="string3">Corde 3 (Sol) :</label>
-            <input type="text" id="string3" name="string3" required>
+			<label for="string1">Corde 5 (La) :</label>
+			<input type="text" id="string1" name="string1" required oninput="validateInput(this)">
 
-            <label for="string4">Corde 2 (Si) :</label>
-            <input type="text" id="string4" name="string4" required>
+			<label for="string2">Corde 4 (Ré) :</label>
+			<input type="text" id="string2" name="string2" required oninput="validateInput(this)">
 
-            <label for="string5">Corde 1 (Mi aigu) :</label>
-            <input type="text" id="string5" name="string5" required><br>
+			<label for="string3">Corde 3 (Sol) :</label>
+			<input type="text" id="string3" name="string3" required oninput="validateInput(this)">
 
-            <input type="submit" value="Trouver l'accord">
-        </form>
+			<label for="string4">Corde 2 (Si) :</label>
+			<input type="text" id="string4" name="string4" required oninput="validateInput(this)">
 
-        <!-- Modale avec chenillard -->
-        <div class="modal" id="loaderModal">
-            <div class="modal-content">
-                <h2>Recherche en cours...</h2>
-                <div class="loader"></div>
-            </div>
-        </div>
+			<label for="string5">Corde 1 (Mi aigu) :</label>
+			<input type="text" id="string5" name="string5" required oninput="validateInput(this)"><br>
 
-        <!-- Afficher les résultats des positions exactes si trouvés -->
-        {% if exact_matches %}
-        <div id="results" class="result">
-            <h2>Accords trouvés avec les positions exactes :</h2>
-            {% for image in exact_matches %}
-                <div class="chord-result">
-                    <h3>{{ image.chord_name }} - {{ image.chord_type }}</h3>
-                    <img src="{{ image.image_url }}" alt="Image de l'accord {{ image.chord_name }}">
-                </div>
-            {% endfor %}
-        </div>
-        {% endif %}
+			<input type="submit" value="Trouver l'accord">
+		</form>
 
-        <!-- Afficher les autres positions possibles si trouvées -->
-        {% if other_positions %}
-        <div class="result">
-            <h2>Autres positions trouvées :</h2>
-            {% for image in other_positions %}
-                <div class="chord-result">
-                    <h3>{{ image.chord_name }} - {{ image.chord_type }}</h3>
-                    <img src="{{ image.image_url }}" alt="Image de l'accord {{ image.chord_name }}">
-                </div>
-            {% endfor %}
-        </div>
-        {% endif %}
+		<!-- Afficher les résultats ou le message d'erreur -->
+		{% if exact_matches %}
+			<div id="results" class="result">
+				<h2>Accords trouvés avec les positions exactes :</h2>
+				{% for image in exact_matches %}
+					<div class="chord-result">
+						<h3>{{ image.chord_name }} - {{ image.chord_type }}</h3>
+						<img src="{{ image.image_url }}" alt="Image de l'accord {{ image.chord_name }}">
+					</div>
+				{% endfor %}
+			</div>
+		{% endif %}
+
+		{% if other_positions %}
+			<div class="result">
+				<h2>Autres positions trouvées :</h2>
+				{% for image in other_positions %}
+					<div class="chord-result">
+						<h3>{{ image.chord_name }} - {{ image.chord_type }}</h3>
+						<img src="{{ image.image_url }}" alt="Image de l'accord {{ image.chord_name }}">
+					</div>
+				{% endfor %}
+			</div>
+		{% endif %}
     </div>
 
-    <!-- Script JavaScript pour afficher la modale -->
+    <!-- Modale avec loader -->
+    <div class="modal" id="loaderModal">
+        <div class="modal-content">
+            <h2>Recherche en cours...</h2>
+            <div class="loader"></div>
+        </div>
+    </div>
+
+    <!-- Script JavaScript pour validation en temps réel et soumission -->
     <script>
+		// Validation en temps réel pour forcer uniquement x, X, 0-26
+        function validateInput(input) {
+            const value = input.value.toLowerCase();
+            if (!/^(x|[0-9]{1,2})$/.test(value) || (value !== 'x' && value > 26)) {
+                input.setCustomValidity("Veuillez entrer 'x' pour une corde non jouée, '0' pour une corde à vide, ou un nombre entre 1 et 26.");
+            } else {
+                input.setCustomValidity(""); // Entrée valide
+            }
+        }
+
+		// Validation du formulaire avant soumission
+        function validateForm() {
+            const inputs = document.querySelectorAll('input[type="text"]');
+            for (let input of inputs) {
+                validateInput(input);
+                if (!input.checkValidity()) {
+                    alert("Veuillez corriger les erreurs dans le formulaire.");
+                    return false; // Empêche la soumission si invalide
+                }
+            }
+            // Afficher la modale si tout est valide
+            showLoader();
+            return true; // Permet la soumission si tout est valide
+        }
+
 		// Fonction pour la modale de chargement
         function showLoader() {
             document.getElementById('loaderModal').style.display = 'flex';
         }
+
 		// Fonction pour faire défiler automatiquement vers l'ancre "results"
 		function scrollToResults() {
 			var results = document.getElementById('results');
