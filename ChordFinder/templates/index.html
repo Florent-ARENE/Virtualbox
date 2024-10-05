@@ -1,3 +1,4 @@
+<!-- ## ./templates/index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -8,72 +9,77 @@
 </head>
 <body>
     <div class="container">
-		<h1>Trouver le nom de l'accord</h1>
-		<p>Veuillez entrer 'x' pour une corde non jouée, '0' pour une corde à vide, ou un nombre entre 1 et 26.</p>
+        <h1>Trouver le nom de l'accord</h1>
+        <p>Veuillez entrer 'x' pour une corde non jouée, '0' pour une corde à vide, ou un nombre entre 1 et 26.</p>
 
-		{% if error_message %}
-			<div class="error">{{ error_message }}</div>
-		{% endif %}
+        {% if error_message %}
+            <div class="error">{{ error_message }}</div>
+        {% endif %}
 
-		<form method="POST" onsubmit="return validateForm()">
-			<label for="string0">Corde 6 (Mi grave) :</label>
-			<input type="text" id="string0" name="string0" required oninput="validateInput(this)">
+        <form method="POST" onsubmit="return validateForm();">
+            <label for="string0">Corde 6 (Mi grave) :</label>
+            <input type="text" id="string0" name="string0" required oninput="validateInput(this)">
 
-			<label for="string1">Corde 5 (La) :</label>
-			<input type="text" id="string1" name="string1" required oninput="validateInput(this)">
+            <label for="string1">Corde 5 (La) :</label>
+            <input type="text" id="string1" name="string1" required oninput="validateInput(this)">
 
-			<label for="string2">Corde 4 (Ré) :</label>
-			<input type="text" id="string2" name="string2" required oninput="validateInput(this)">
+            <label for="string2">Corde 4 (Ré) :</label>
+            <input type="text" id="string2" name="string2" required oninput="validateInput(this)">
 
-			<label for="string3">Corde 3 (Sol) :</label>
-			<input type="text" id="string3" name="string3" required oninput="validateInput(this)">
+            <label for="string3">Corde 3 (Sol) :</label>
+            <input type="text" id="string3" name="string3" required oninput="validateInput(this)">
 
-			<label for="string4">Corde 2 (Si) :</label>
-			<input type="text" id="string4" name="string4" required oninput="validateInput(this)">
+            <label for="string4">Corde 2 (Si) :</label>
+            <input type="text" id="string4" name="string4" required oninput="validateInput(this)">
 
-			<label for="string5">Corde 1 (Mi aigu) :</label>
-			<input type="text" id="string5" name="string5" required oninput="validateInput(this)"><br>
+            <label for="string5">Corde 1 (Mi aigu) :</label>
+            <input type="text" id="string5" name="string5" required oninput="validateInput(this)"><br>
 
-			<input type="submit" value="Trouver l'accord">
-		</form>
+            <input type="submit" value="Trouver l'accord">
+        </form>
 
-		<!-- Afficher les résultats ou le message d'erreur -->
-		{% if exact_matches %}
-			<div id="results" class="result">
-				<h2>Accords trouvés avec les positions exactes :</h2>
-				{% for image in exact_matches %}
-					<div class="chord-result">
-						<h3>{{ image.chord_name }} - {{ image.chord_type }}</h3>
-						<img src="{{ image.image_url }}" alt="Image de l'accord {{ image.chord_name }}">
-					</div>
-				{% endfor %}
-			</div>
-		{% endif %}
-
-		{% if other_positions %}
-			<div class="result">
-				<h2>Autres positions trouvées :</h2>
-				{% for image in other_positions %}
-					<div class="chord-result">
-						<h3>{{ image.chord_name }} - {{ image.chord_type }}</h3>
-						<img src="{{ image.image_url }}" alt="Image de l'accord {{ image.chord_name }}">
-					</div>
-				{% endfor %}
-			</div>
-		{% endif %}
-    </div>
-
-    <!-- Modale avec loader -->
-    <div class="modal" id="loaderModal">
-        <div class="modal-content">
-            <h2>Recherche en cours...</h2>
-            <div class="loader"></div>
+        <!-- Modale avec chenillard -->
+        <div class="modal" id="loaderModal">
+            <div class="modal-content">
+                <h2>Recherche en cours...</h2>
+                <div class="loader"></div>
+            </div>
         </div>
+
+        <!-- Afficher les résultats ou le message d'erreur -->
+        {% if exact_matches %}
+            <div id="results" class="result">
+                <h2>Accords trouvés avec les positions exactes :</h2>
+                {% for image in exact_matches %}
+                    <div class="chord-result">
+                        <h3>{{ image.chord_name }} - {{ image.chord_type }}</h3>
+                        <img src="{{ image.image_url }}" alt="Image de l'accord {{ image.chord_name }}">
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {% if other_positions %}
+            <div class="result">
+            {% if exact_matches %}
+                <h2>Autres positions trouvées :</h2>
+            {% else %}
+                <h2 id="results">Aucun accord trouvé pour ces positions.</h2>
+                <h2>Accords les plus proches :</h2>
+            {% endif %}
+                {% for image in other_positions %}
+                    <div class="chord-result">
+                        <h3>{{ image.chord_name }} - {{ image.chord_type }}</h3>
+                        <img src="{{ image.image_url }}" alt="Image de l'accord {{ image.chord_name }}">
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
     </div>
 
     <!-- Script JavaScript pour validation en temps réel et soumission -->
     <script>
-		// Validation en temps réel pour forcer uniquement x, X, 0-26
+        // Validation en temps réel pour forcer uniquement x, X, 0-26
         function validateInput(input) {
             const value = input.value.toLowerCase();
             if (!/^(x|[0-9]{1,2})$/.test(value) || (value !== 'x' && value > 26)) {
@@ -83,7 +89,7 @@
             }
         }
 
-		// Validation du formulaire avant soumission
+        // Validation du formulaire avant soumission
         function validateForm() {
             const inputs = document.querySelectorAll('input[type="text"]');
             for (let input of inputs) {
@@ -93,29 +99,28 @@
                     return false; // Empêche la soumission si invalide
                 }
             }
-            // Afficher la modale si tout est valide
-            showLoader();
+            showLoader(); // Montre la modale une fois les validations terminées
             return true; // Permet la soumission si tout est valide
         }
 
-		// Fonction pour la modale de chargement
+        // Fonction pour la modale de chargement
         function showLoader() {
             document.getElementById('loaderModal').style.display = 'flex';
         }
 
-		// Fonction pour faire défiler automatiquement vers l'ancre "results"
-		function scrollToResults() {
-			var results = document.getElementById('results');
-			if (results) {
-				results.scrollIntoView({ behavior: 'smooth' });
-			}
-		}
+        // Fonction pour faire défiler automatiquement vers l'ancre "results"
+        function scrollToResults() {
+            var results = document.getElementById('results');
+            if (results) {
+                results.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
 
-		// Exécuter la fonction après le chargement de la page si des résultats existent
-		window.onload = function() {
-			scrollToResults();
-		};
-	</script>
+        // Exécuter la fonction après le chargement de la page si des résultats existent
+        window.onload = function() {
+            scrollToResults();
+        };
+    </script>
 
 </body>
 </html>
