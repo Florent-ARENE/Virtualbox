@@ -1,7 +1,10 @@
+## app.py
+
 from flask import Flask, render_template, request
 import requests
 from bs4 import BeautifulSoup
 import urllib.parse
+import re
 
 app = Flask(__name__)
 
@@ -31,18 +34,35 @@ def search_images_for_chord_on_page(chord_name, encoded_positions, page):
     base_url = "https://jguitar.com/chordsearch"
     params = {'chordsearch': chord_name, 'page': page}
     response = requests.get(base_url, params=params)
+    
+    # Afficher le numéro de la page pour le debug
+    print(f"Recherche sur la page {page} pour l'accord {chord_name}")
+    
     soup = BeautifulSoup(response.content, "html.parser")
 
     # Chercher toutes les images potentielles sur cette page
     image_elements = soup.find_all('img', src=True)
     images = []
 
+    # Regex mis à jour pour capturer des nombres de plusieurs chiffres
+    regex_pattern = re.compile(r"[0-9x]+%2C[0-9x]+%2C[0-9x]+%2C[0-9x]+%2C[0-9x]+%2C[0-9x]+\.png$")
+    
     for img in image_elements:
         if "chordshape" in img['src']:
             full_img_url = f"https://jguitar.com{img['src']}"
-            # Filtrer uniquement les images dont la fin correspond aux positions des doigts
-            if img['src'].endswith(encoded_positions + ".png"):
-                images.append(full_img_url)
+            # Vérification avec regex si l'image suit le schéma correct
+            if regex_pattern.search(img['src']):
+                # Filtrer les images correspondant aux positions exactes des doigts
+                if img['src'].endswith(encoded_positions + ".png"):
+                    print(f"Image exacte trouvée : {full_img_url}")  # Debug exact match
+                    images.append({'match': True, 'url': full_img_url})
+                else:
+                    print(f"Autre position trouvée : {full_img_url}")  # Debug other position
+                    images.append({'match': False, 'url': full_img_url})
+
+    # Si aucune image n'est trouvée, l'indiquer
+    if not images:
+        print(f"Aucune image trouvée sur la page {page} pour l'accord {chord_name}")
 
     return images
 
@@ -55,21 +75,36 @@ def get_chord_images_for_finger_positions(string_positions):
     encoded_positions = urllib.parse.quote(",".join(string_positions))
 
     # Chercher les images pour chaque accord trouvé sur un nombre limité de pages
-    all_images = []
+    exact_matches = []
+    other_positions = []
 
     # Boucle à travers chaque accord pour les pages (jusqu'à ce qu'on ne trouve plus d'images pertinentes)
     for chord_root, chord_type in chords:
-        max_pages = 3  # Limite des pages à parcourir
-        for page in range(1, max_pages + 1):
-            images = search_images_for_chord_on_page(chord_root, encoded_positions, page)
-            for image in images:
-                all_images.append({'chord_name': chord_root, 'chord_type': chord_type, 'image_url': image})
+        page_num = 1
+        max_pages_without_results = 0  # Variable pour stopper la recherche après plusieurs pages vides
+        while max_pages_without_results < 2:  # On autorise 2 pages vides avant de stopper
+            images = search_images_for_chord_on_page(chord_root, encoded_positions, page_num)
+            if not images:
+                max_pages_without_results += 1
+                print(f"Aucune image trouvée pour {chord_root} sur la page {page_num}.")
+            else:
+                max_pages_without_results = 0  # Réinitialiser le compteur s'il y a des résultats
+                # Diviser les images entre exactes et autres
+                for img in images:
+                    if img['match']:
+                        exact_matches.append({'chord_name': chord_root, 'chord_type': chord_type, 'image_url': img['url']})
+                    else:
+                        other_positions.append({'chord_name': chord_root, 'chord_type': chord_type, 'image_url': img['url']})
 
-    # Retourner toutes les images filtrées
-    return all_images
+            page_num += 1  # Passer à la page suivante
+
+    return exact_matches, other_positions
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
+    exact_matches = []
+    other_positions = []
+    
     if request.method == 'POST':
         try:
             # Récupérer les positions des doigts depuis le formulaire
@@ -85,12 +120,10 @@ def index():
             return f"Erreur dans le formulaire, champ manquant : {e}"
 
         # Obtenir toutes les images correspondant aux positions des doigts
-        images = get_chord_images_for_finger_positions(string_positions)
+        exact_matches, other_positions = get_chord_images_for_finger_positions(string_positions)
 
-        # Afficher les informations et les images
-        return render_template('index.html', images=images)
-
-    return render_template('index.html')
+    # Afficher les informations et les images
+    return render_template('index.html', exact_matches=exact_matches, other_positions=other_positions)
 
 if __name__ == '__main__':
     app.run(debug=True)
