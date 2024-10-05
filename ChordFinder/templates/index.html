@@ -1,3 +1,4 @@
+<!-- ## ./templates/index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -9,7 +10,7 @@
 <body>
     <div class="container">
         <h1>Trouver l'accord de guitare</h1>
-        <form method="POST">
+        <form method="POST" onsubmit="showLoader()">
             <label for="string0">Corde 6 (Mi grave) :</label>
             <input type="text" id="string0" name="string0" required>
 
@@ -31,17 +32,60 @@
             <input type="submit" value="Trouver l'accord">
         </form>
 
-        {% if images %}
-        <div class="result">
-            <h2>Résultats trouvés :</h2>
-            {% for image in images %}
+        <!-- Modale avec chenillard -->
+        <div class="modal" id="loaderModal">
+            <div class="modal-content">
+                <h2>Recherche en cours...</h2>
+                <div class="loader"></div>
+            </div>
+        </div>
+
+        <!-- Afficher les résultats des positions exactes si trouvés -->
+        {% if exact_matches %}
+        <div id="results" class="result">
+            <h2>Accords trouvés avec les positions exactes :</h2>
+            {% for image in exact_matches %}
                 <div class="chord-result">
                     <h3>{{ image.chord_name }} - {{ image.chord_type }}</h3>
-                    <img src="{{ image.image_url }}" alt="Image de l'accord">
+                    <img src="{{ image.image_url }}" alt="Image de l'accord {{ image.chord_name }}">
+                </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Afficher les autres positions possibles si trouvées -->
+        {% if other_positions %}
+        <div class="result">
+            <h2>Autres positions trouvées :</h2>
+            {% for image in other_positions %}
+                <div class="chord-result">
+                    <h3>{{ image.chord_name }} - {{ image.chord_type }}</h3>
+                    <img src="{{ image.image_url }}" alt="Image de l'accord {{ image.chord_name }}">
                 </div>
             {% endfor %}
         </div>
         {% endif %}
     </div>
+
+    <!-- Script JavaScript pour afficher la modale -->
+    <script>
+		// Fonction pour la modale de chargement
+        function showLoader() {
+            document.getElementById('loaderModal').style.display = 'flex';
+        }
+		// Fonction pour faire défiler automatiquement vers l'ancre "results"
+		function scrollToResults() {
+			var results = document.getElementById('results');
+			if (results) {
+				results.scrollIntoView({ behavior: 'smooth' });
+			}
+		}
+
+		// Exécuter la fonction après le chargement de la page si des résultats existent
+		window.onload = function() {
+			scrollToResults();
+		};
+	</script>
+
 </body>
 </html>
