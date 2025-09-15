@@ -1,240 +1,352 @@
-# ChordFinder - Mise en production
+# ChordFinder - Guide de Déploiement Production
 
-Ce document décrit la configuration et la mise en production du projet **ChordFinder**, une application Flask utilisant Apache, mod_wsgi, et HTTPS via Let's Encrypt. Il inclut les instructions de configuration pour le fichier `app.wsgi`, le fichier `app.py` (pour les environnements de test et de production), ainsi que les configurations Apache pour HTTP et HTTPS.
+Ce document décrit la configuration et la mise en production du projet **ChordFinder**, une application Flask utilisant Apache, mod_wsgi, et HTTPS via Let's Encrypt. Ce guide couvre l'intégration de ChordFinder dans un VirtualHost existant ainsi que les solutions aux problèmes de déploiement courants.
 
 ## Table des matières
-1. [Configuration de l'environnement virtuel](#configuration-de-lenvironnement-virtuel)
-2. [Installation des dépendances](#installation-des-dépendances)
-3. [Installation de mod_wsgi](#installation-de-mod_wsgi)
-4. [Configuration du fichier `app.wsgi`](#configuration-du-fichier-appwsgi)
-5. [Configuration du fichier `app.py`](#configuration-du-fichier-apppy)
-   - [Environnement de test](#environnement-de-test)
-   - [Environnement de production](#environnement-de-production)
-6. [Configuration d'Apache](#configuration-dapache)
-   - [HTTP](#http)
-   - [HTTPS](#https)
-7. [SSL avec Let's Encrypt](#ssl-avec-lets-encrypt)
-8. [Renouvellement automatique du certificat SSL](#renouvellement-automatique-du-certificat-ssl)
-9. [Démarrage et vérification](#démarrage-et-vérification)
+1. [Prérequis et préparation](#prérequis-et-préparation)
+2. [Configuration de l'environnement virtuel](#configuration-de-lenvironnement-virtuel)
+3. [Installation des dépendances](#installation-des-dépendances)
+4. [Configuration du fichier app.wsgi](#configuration-du-fichier-appwsgi)
+5. [Configuration du fichier app.py](#configuration-du-fichier-apppy)
+6. [Intégration Apache VirtualHost](#intégration-apache-virtualhost)
+7. [Gestion des conflits multi-domaines](#gestion-des-conflits-multi-domaines)
+8. [Configuration SSL et Let's Encrypt](#configuration-ssl-et-lets-encrypt)
+9. [Dépannage des problèmes courants](#dépannage-des-problèmes-courants)
+10. [Tests de validation](#tests-de-validation)
 
 ---
 
+## Prérequis et préparation
+
+### Système requis
+- Ubuntu/Debian avec Apache 2.4+
+- Python 3.8+ 
+- mod_wsgi installé et activé
+- Accès root/sudo
+
+### Structure de fichiers
+```
+/var/www/html/ChordFinder/
+├── app.py                 # Application Flask (route /)
+├── app.wsgi              # Point d'entrée WSGI
+├── venv/                 # Environnement virtuel Python
+├── static/css/           # Fichiers CSS
+├── templates/            # Templates HTML
+├── requirements.txt      # Dépendances Python
+└── readme.md            # Documentation
+```
+
 ## Configuration de l'environnement virtuel
 
-Avant de commencer l'installation des dépendances, il est nécessaire de configurer l'environnement virtuel pour isoler les packages Python de votre projet.
+1. **Créer et activer l'environnement virtuel :**
 
-1. Créez un environnement virtuel dans le répertoire du projet :
+```bash
+cd /var/www/html/ChordFinder/
+python3 -m venv venv
+source venv/bin/activate
+```
 
-Exemple pour le répertoire `/var/www/html/ChordFinder/`
+2. **Vérifier la version Python utilisée :**
 
-   ```bash
-   cd /var/www/html/ChordFinder/
-   python3 -m venv venv
-   source venv/bin/activate
-   ```
-
-2. Maintenant que l'environnement virtuel est activé, nous pouvons installer les dépendances spécifiques au projet.
+```bash
+python3 --version
+ls venv/lib/  # Noter le dossier pythonX.Y pour la config WSGI
+```
 
 ## Installation des dépendances
 
-Une fois l'environnement virtuel activé, installez les dépendances requises pour **ChordFinder**. Les dépendances incluent Flask, requests, BeautifulSoup4, et d'autres :
+**Installer les packages requis :**
 
 ```bash
+# Avec l'environnement virtuel activé
 pip install -r requirements.txt
+
+# Ou installation manuelle
+pip install Flask==3.0.3 beautifulsoup4==4.12.3 requests==2.32.3
 ```
 
-Si le fichier `requirements.txt` n'est pas disponible, installez manuellement les dépendances comme suit :
+**Vérifier l'installation :**
 
 ```bash
-pip install flask requests beautifulsoup4
+python3 -c "from app import app; print('Import OK')"
 ```
 
-## Installation de mod_wsgi
+## Configuration du fichier app.wsgi
 
-Pour permettre à Apache de servir une application Flask via WSGI, installez **mod_wsgi** et activez-le :
-
-```bash
-sudo apt install libapache2-mod-wsgi-py3
-sudo a2enmod wsgi
-sudo systemctl reload apache2
-```
-
-Cela assure que **mod_wsgi** est bien installé et configuré pour **ChordFinder**.
-
-## Configuration du fichier `app.wsgi`
-
-Le fichier `app.wsgi` est utilisé pour connecter Apache à votre application Flask via mod_wsgi. Voici la configuration correcte :
+**Créer `/var/www/html/ChordFinder/app.wsgi` :**
 
 ```python
-## app.wsgi
+#!/usr/bin/python3
 import sys
-import os
 import site
 
-# Spécifie le chemin du projet et du virtualenv
+# Ajouter le chemin du projet
 sys.path.insert(0, '/var/www/html/ChordFinder')
 
-# Ajoute le chemin des packages de l'environnement virtuel à sys.path
+# CRITIQUE: Ajouter explicitement les packages de l'environnement virtuel
+# Adapter python3.12 selon votre version Python
 site.addsitedir('/var/www/html/ChordFinder/venv/lib/python3.12/site-packages')
 
-# Importer l'application Flask
 from app import app as application
+
+if __name__ == "__main__":
+    application.run()
 ```
 
-Ce fichier doit être placé dans le répertoire `/var/www/html/ChordFinder/`.
+**⚠️ Points critiques :**
+- Utiliser `site.addsitedir()` pour l'environnement virtuel
+- Adapter le chemin selon votre version Python (python3.X)
+- Le fichier doit s'appeler `app.wsgi` (pas `chordfinder.wsgi`)
 
-## Configuration du fichier `app.py`
+## Configuration du fichier app.py
 
-Voici deux versions du fichier `app.py`, une pour l'environnement de test et une pour l'environnement de production.
+### Différences Dev vs Production
 
-### Environnement de test
-
-Le fichier `app.py` pour l'environnement de test permet d'exécuter l'application localement et de vérifier son fonctionnement sur le réseau local. En utilisant l'option `host='0.0.0.0'`, vous permettez à l'application Flask d'être accessible depuis n'importe quelle adresse IP de votre réseau local.
-
+**🏠 Mode Développement (test local) :**
 ```python
-from flask import Flask, render_template, request
-import requests
-from bs4 import BeautifulSoup
-import urllib.parse
-import re
-
-app = Flask(__name__)
-
-@app.route('/ChordFinder/', methods=['GET', 'POST'])
-def index():
-    # Implémentez ici la logique de votre application
-    pass
-
+@app.route('/ChordFinder/', methods=['GET', 'POST'])  # Route complète
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0')
+    app.run(debug=True, host='0.0.0.0')  # Port 5000
 ```
 
-Vous pouvez exécuter cette version de l'application avec la commande suivante dans votre terminal :
-
-```bash
-python3 app.py --host=0.0.0.0
-```
-
-Cela rendra votre application accessible sur le réseau local à partir de l'adresse IP de votre machine, par exemple `http://192.168.1.x:5000/`. 
-
-Cette méthode est utile pour tester votre application sur d'autres appareils connectés au même réseau local avant la mise en production.
-
-
-### Environnement de production
-
-Dans la version de production, Flask est exécuté par Apache et mod_wsgi, il n'est donc pas nécessaire d'utiliser `app.run()`. L'application est servie automatiquement via WSGI :
-
+**🚀 Mode Production (WSGI/Apache) :**
 ```python
-from flask import Flask, render_template, request
-import requests
-from bs4 import BeautifulSoup
-import urllib.parse
-import re
-
-app = Flask(__name__)
-
-@app.route('/ChordFinder/', methods=['GET', 'POST'])
-def index():
-    # Implémentez ici la logique de votre application
-    pass
-
+@app.route('/', methods=['GET', 'POST'])  # Route racine
 if __name__ == '__main__':
-    app.run()
+    app.run()  # Géré par mod_wsgi
 ```
 
-### Remarque importante
-Dans l'environnement de production, l'exécution de `app.run()` n'est pas nécessaire. C'est mod_wsgi qui prend automatiquement en charge l'exécution de l'application Flask en tant que service via Apache.
+### Configuration templates/index.html
 
-## Configuration d'Apache
+**Chemins des fichiers statiques en production :**
 
-### HTTP
+```html
+<!-- ✅ Correct pour production WSGI -->
+<link rel="stylesheet" href="/ChordFinder/static/css/style.css">
 
-Le fichier de configuration pour Apache en HTTP (`/etc/apache2/sites-available/ChordFinder.conf`) :
-
-```apache
-<VirtualHost *:80>
-    ServerName my_domaine.com
-    DocumentRoot /var/www/html/ChordFinder
-
-    WSGIDaemonProcess chordfinder python-path=/var/www/html/ChordFinder/venv/lib/python3.12/site-packages
-    WSGIScriptAlias /ChordFinder /var/www/html/ChordFinder/chordfinder.wsgi
-
-    <Directory /var/www/html/ChordFinder>
-        Require all granted
-    </Directory>
-
-    ErrorLog ${APACHE_LOG_DIR}/error.log
-    CustomLog ${APACHE_LOG_DIR}/access.log combined
-</VirtualHost>
+<!-- ❌ Incorrect - ne fonctionne qu'en dev -->
+<link rel="stylesheet" href="/static/css/style.css">
 ```
 
-Ce fichier redirige tout le trafic HTTP vers HTTPS.
+## Intégration Apache VirtualHost
 
-### HTTPS
+**Au lieu de créer une configuration séparée, intégrer ChordFinder dans un VirtualHost existant.**
 
-Le fichier de configuration pour Apache en HTTPS (`/etc/apache2/sites-available/ChordFinder-le-ssl.conf`) avec le support SSL de Let's Encrypt :
+### Configuration SSL recommandée
+
+**Exemple d'intégration dans `/etc/apache2/sites-available/mondomaine.fr-le-ssl.conf` :**
 
 ```apache
 <IfModule mod_ssl.c>
 <VirtualHost *:443>
-    ServerName my_domaine.com
-    ServerAlias www.my_domaine.com
-    DocumentRoot /var/www/html/ChordFinder
+    ServerName mondomaine.fr
+    ServerAlias www.mondomaine.fr
 
-    WSGIDaemonProcess chordfinder_ssl python-path=/var/www/html/ChordFinder/venv/lib/python3.12/site-packages
-    WSGIScriptAlias /ChordFinder /var/www/html/ChordFinder/chordfinder.wsgi
+    # Site principal
+    DocumentRoot /var/www/html/mondomaine.fr
+
+    # Configuration WSGI pour ChordFinder
+    WSGIScriptAlias /ChordFinder /var/www/html/ChordFinder/app.wsgi
 
     <Directory /var/www/html/ChordFinder>
         Require all granted
     </Directory>
 
+    # Servir les fichiers statiques de ChordFinder
+    Alias /ChordFinder/static /var/www/html/ChordFinder/static
+    <Directory /var/www/html/ChordFinder/static>
+        Require all granted
+    </Directory>
+
+    # Configuration SSL standard
     SSLEngine on
-    SSLCertificateFile /etc/letsencrypt/live/my_domaine.com/fullchain.pem
-    SSLCertificateKeyFile /etc/letsencrypt/live/my_domaine.com/privkey.pem
+    SSLCertificateFile /etc/letsencrypt/live/mondomaine.fr/fullchain.pem
+    SSLCertificateKeyFile /etc/letsencrypt/live/mondomaine.fr/privkey.pem
     Include /etc/letsencrypt/options-ssl-apache.conf
 
-    ErrorLog ${APACHE_LOG_DIR}/error.log
-    CustomLog ${APACHE_LOG_DIR}/access.log combined
+    ErrorLog ${APACHE_LOG_DIR}/mondomaine.fr_error.log
+    CustomLog ${APACHE_LOG_DIR}/mondomaine.fr_access.log combined
 </VirtualHost>
 </IfModule>
 ```
 
-## SSL avec Let's Encrypt
-
-Pour configurer SSL avec Let's Encrypt, utilisez la commande suivante pour générer vos certificats :
+### Permissions système
 
 ```bash
-sudo certbot --apache -d my_domaine.com -d www.my_domaine.com
+# Ajuster les permissions
+sudo chown -R www-data:www-data /var/www/html/ChordFinder/
+sudo chmod -R 755 /var/www/html/ChordFinder/
+sudo chmod +x /var/www/html/ChordFinder/app.wsgi
 ```
 
-Cela ajoutera les certificats nécessaires pour le HTTPS et configurera automatiquement Apache.
+## Gestion des conflits multi-domaines
 
-## Renouvellement automatique du certificat SSL
+### Problème des serveurs par défaut
 
-Les certificats Let's Encrypt expirent tous les 90 jours. Pour automatiser leur renouvellement, vous pouvez configurer une tâche cron avec Certbot. Ajoutez la ligne suivante pour vérifier quotidiennement et renouveler automatiquement les certificats si nécessaire :
+**Si vous gérez plusieurs domaines, éviter les conflits SSL :**
 
 ```bash
-0 0 * * * certbot renew --quiet
+# Vérifier l'ordre des VirtualHost
+sudo apache2ctl -S
+
+# Si nécessaire, faire du domaine principal le serveur par défaut
+sudo mv /etc/apache2/sites-available/mondomaine.fr.conf /etc/apache2/sites-available/000-mondomaine.fr.conf
+sudo mv /etc/apache2/sites-available/mondomaine.fr-le-ssl.conf /etc/apache2/sites-available/000-mondomaine.fr-le-ssl.conf
+
+# Réactiver avec les nouveaux noms
+sudo a2dissite mondomaine.fr.conf mondomaine.fr-le-ssl.conf
+sudo a2ensite 000-mondomaine.fr.conf 000-mondomaine.fr-le-ssl.conf
 ```
 
-Cette ligne de cron exécute la commande `certbot renew` chaque jour à minuit.
+### Logs d'erreurs typiques
 
-## Démarrage et vérification
+**Conflit SSL multi-domaines :**
+```
+AH02032: Hostname autredomaine.fr (default host as no SNI was provided) 
+and hostname mondomaine.fr provided via HTTP have no compatible SSL setup
+```
 
-1. **Activez les fichiers de configuration** :
+**Solution :** Définir le bon domaine comme serveur par défaut.
 
-   ```bash
-   sudo a2ensite ChordFinder.conf
-   sudo a2ensite ChordFinder-le-ssl.conf
-   sudo systemctl reload apache2
-   ```
+## Configuration SSL et Let's Encrypt
 
-2. **Vérifiez que le service Apache fonctionne** :
+### Installation certificat
 
-   ```bash
-   sudo systemctl status apache2
-   ```
+```bash
+# Générer le certificat SSL
+sudo certbot --apache -d mondomaine.fr -d www.mondomaine.fr
+```
 
-3. **Testez l'application en HTTPS** :
+### Test de renouvellement
 
-   Ouvrez un navigateur et accédez à `https://my_domaine.com/ChordFinder/`.
+```bash
+# Vérifier que le renouvellement fonctionne après intégration
+sudo certbot renew --dry-run
+```
+
+**Le renouvellement automatique continue de fonctionner même après renommage des fichiers de configuration Apache.**
+
+## Dépannage des problèmes courants
+
+### Erreur "ModuleNotFoundError: No module named 'flask'"
+
+**Cause :** WSGI n'utilise pas l'environnement virtuel
+
+**Solution :** Vérifier `app.wsgi` avec `site.addsitedir()` :
+
+```python
+# ✅ Configuration correcte
+site.addsitedir('/var/www/html/ChordFinder/venv/lib/python3.12/site-packages')
+```
+
+### Erreur 404 Flask "The requested URL was not found"
+
+**Cause :** Route Flask incorrecte pour WSGI
+
+**Solution :** Route `/` dans `app.py` :
+
+```python
+# ✅ Correct pour WSGI
+@app.route('/', methods=['GET', 'POST'])
+
+# ❌ Incorrect pour WSGI  
+@app.route('/ChordFinder/', methods=['GET', 'POST'])
+```
+
+### CSS non chargé
+
+**Cause :** Chemins statiques incorrects
+
+**Solution :** Utiliser le préfixe `/ChordFinder/` dans `index.html` :
+
+```html
+<!-- ✅ Correct -->
+<link rel="stylesheet" href="/ChordFinder/static/css/style.css">
+```
+
+### Erreur 500 "Internal Server Error"
+
+**Diagnostic :**
+
+```bash
+# Surveiller les logs en temps réel
+sudo tail -f /var/log/apache2/mondomaine.fr_error.log
+
+# Tester l'import Python manuellement
+cd /var/www/html/ChordFinder/
+source venv/bin/activate
+python3 -c "from app import app; print('OK')"
+```
+
+### Problèmes de permissions
+
+```bash
+# Vérifier et corriger les permissions
+sudo chown -R www-data:www-data /var/www/html/ChordFinder/
+sudo chmod -R 755 /var/www/html/ChordFinder/
+```
+
+## Tests de validation
+
+### Tests étape par étape
+
+1. **Test environnement Python :**
+```bash
+cd /var/www/html/ChordFinder/
+source venv/bin/activate
+python3 -c "from app import app; print('Import OK')"
+```
+
+2. **Test configuration Apache :**
+```bash
+sudo apache2ctl configtest
+sudo systemctl restart apache2
+```
+
+3. **Test fonctionnel :**
+```bash
+curl -I https://mondomaine.fr/ChordFinder/
+# Attendu: HTTP/1.1 200 OK
+```
+
+4. **Test interface :**
+   - Navigateur : `https://mondomaine.fr/ChordFinder/`
+   - Vérifier que le CSS se charge
+   - Tester la recherche d'accords
+
+### Validation complète
+
+**Checklist finale :**
+
+- [ ] Environnement virtuel fonctionnel
+- [ ] `app.wsgi` avec `site.addsitedir()` correct
+- [ ] Route Flask `/` (pas `/ChordFinder/`)
+- [ ] Chemins CSS avec préfixe `/ChordFinder/static/`
+- [ ] Permissions www-data correctes
+- [ ] Configuration Apache intégrée
+- [ ] Tests SSL et renouvellement OK
+- [ ] Application accessible et fonctionnelle
+
+## Support et maintenance
+
+### Logs utiles
+
+```bash
+# Logs applicatifs
+sudo tail -f /var/log/apache2/mondomaine.fr_error.log
+
+# Logs système Apache
+sudo tail -f /var/log/apache2/error.log
+```
+
+### Mise à jour de l'application
+
+```bash
+cd /var/www/html/ChordFinder/
+source venv/bin/activate
+git pull  # Si sous Git
+pip install -r requirements.txt  # Mise à jour dépendances
+sudo systemctl reload apache2  # Redémarrage Apache
+```
+
+Cette approche d'intégration dans un VirtualHost existant est plus robuste que les configurations séparées et évite les conflits multi-domaines.
