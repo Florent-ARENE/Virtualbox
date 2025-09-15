@@ -85,6 +85,11 @@ form input[type="submit"]:hover {
     margin-top: 20px;
 }
 
+.error {
+    color: red;
+    margin-top: 20px;
+}
+
 /* Modale et chenillard */
 .modal {
     display: none;

@@ -100,7 +100,7 @@ def get_chord_images_for_finger_positions(string_positions):
 
     return exact_matches, other_positions
 
-@app.route('/ChordFinder/', methods=['GET', 'POST'])
+@app.route('/', methods=['GET', 'POST'])
 def index():
     exact_matches = []
     other_positions = []
