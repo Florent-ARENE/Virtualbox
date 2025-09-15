@@ -16,6 +16,26 @@ Ce document décrit la configuration et la mise en production du projet **ChordF
 
 ---
 
+## Installation de mod_wsgi
+
+Pour permettre à Apache de servir une application Flask via WSGI, installez **mod_wsgi** et activez-le :
+
+```bash
+sudo apt install libapache2-mod-wsgi-py3
+sudo a2enmod wsgi
+sudo systemctl reload apache2
+```
+
+**Vérification de l'installation :**
+
+```bash
+# Vérifier que mod_wsgi est bien activé
+apache2ctl -M | grep wsgi
+# Attendu: wsgi_module (shared)
+```
+
+Sans cette étape, Apache ne peut pas exécuter les applications Python et vous obtiendrez des erreurs 500.
+
 ## Prérequis et préparation
 
 ### Système requis
